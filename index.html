@@ -234,9 +234,10 @@ html.dark .delete-btn:hover { background: #2d0a0a; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
 .modal-title { font-size: 28px; line-height: 1.1; color: var(--text); }
 .close-btn {
-  width: 2.5rem; height: 2.5rem; border-radius: 50%; border: none;
+  width: 2.75rem; height: 2.75rem; border-radius: 50%; border: none;
   background: none; color: var(--text-muted); cursor: pointer;
   display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+  font-size: 22px; flex-shrink: 0;
 }
 .close-btn:hover { background: var(--bg-hover); }
 
@@ -247,7 +248,26 @@ label { font-size: 14px; color: var(--text-muted); margin-bottom: 0.75rem; }
 input, select, textarea {
   background: var(--input-bg); border: 1px solid var(--border); border-radius: 0.75rem;
   padding: 0.75rem 1rem; font-size: 14px; transition: all 0.2s;
-  color: var(--text);
+  color: var(--text); min-height: 3rem;
+}
+#dateTime {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 0.75rem;
+}
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  height: 3rem;
+  padding: 0 1rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
+  cursor: pointer;
+}
 }
 select option { background: var(--bg-card); color: var(--text); }
 input:focus, select:focus, textarea:focus {
