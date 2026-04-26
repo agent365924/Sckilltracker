@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚔ Organic PVP Log</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #fafafa;
+  color: #18181b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.container { min-height: 100vh; padding: 1.5rem 10%; }
+.content { padding-top: 3rem; }
+.header { margin-bottom: 2rem; }
+.title { font-size: 56px; line-height: 1.1; margin-bottom: 0.5rem; font-weight: 500; }
+
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 13px;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s;
+}
+.status-banner.loading { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.status-banner.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.status-banner.error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.status-banner.hidden  { display: none; }
+.spinner {
+  width: 14px; height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.stat-card {
+  background: white; border-radius: 1rem; padding: 1.5rem;
+  border: 1px solid #e4e4e7; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.stat-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+.stat-icon { width: 2.5rem; height: 2.5rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.stat-icon.green { background-color: rgba(16,185,129,0.1); }
+.stat-icon.red   { background-color: rgba(239,68,68,0.1); }
+.stat-icon.blue  { background-color: rgba(59,130,246,0.1); }
+.stat-label { font-size: 14px; color: #71717a; }
+.stat-value { font-size: 56px; line-height: 1.1; font-weight: 500; }
+
+.actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-bottom: 1.5rem; }
+.btn {
+  padding: 0 40px; height: 38px; line-height: 38px;
+  border-radius: 9999px; border: none; font-size: 14px; font-weight: 500;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;
+  transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.btn-primary { background: #2563eb; color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.table-container {
+  background: white; border-radius: 1rem;
+  border: 1px solid #e4e4e7; box-shadow: 0 1px 2px rgba(0,0,0,0.05); overflow: hidden;
+}
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead { background: #fafafa; border-bottom: 1px solid #e4e4e7; }
+th {
+  padding: 1rem; text-align: left; font-size: 14px; color: #71717a;
+  font-weight: 500; cursor: pointer; transition: background 0.2s; user-select: none;
+}
+th:hover { background: #f4f4f5; }
+th .header-content { display: flex; align-items: center; gap: 0.5rem; }
+th.no-sort { cursor: default; }
+th.no-sort:hover { background: #fafafa; }
+td { padding: 1rem; font-size: 14px; border-bottom: 1px solid #f4f4f5; }
+tbody tr { transition: background 0.2s; }
+tbody tr:hover { background: #fafafa; }
+tbody tr:last-child td { border-bottom: none; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 14px;
+  width: 5rem; justify-content: center;
+}
+.badge-kill    { background: #d1fae5; color: #047857; }
+.badge-death   { background: #fee2e2; color: #b91c1c; }
+.badge-neutral { background: #e2e8f0; color: #475569; }
+.badge-type { background: #f4f4f5; color: #3f3f46; border-radius: 0.25rem; padding: 0.25rem 0.5rem; }
+.name-cell { font-weight: 700; }
+
+.delete-btn {
+  opacity: 0; color: #dc2626; background: none; border: none;
+  cursor: pointer; padding: 0.25rem; border-radius: 0.25rem; transition: all 0.2s;
+}
+tr:hover .delete-btn { opacity: 1; }
+.delete-btn:hover { background: #fee2e2; color: #b91c1c; }
+
+.empty-state { text-align: center; padding: 3rem 1rem; color: #a1a1aa; }
+.empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+.modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+  z-index: 50; padding: 1.5rem; align-items: center; justify-content: center;
+}
+.modal.active { display: flex; }
+.modal-content {
+  background: white; border-radius: 1.5rem; border: 1px solid #e4e4e7;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+  width: 100%; max-width: 48rem; max-height: 90vh; overflow-y: auto; padding: 2rem;
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+.modal-title { font-size: 28px; line-height: 1.1; }
+.close-btn {
+  width: 2.5rem; height: 2.5rem; border-radius: 50%; border: none;
+  background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+}
+.close-btn:hover { background: #f4f4f5; }
+
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 1.5rem; }
+.form-group { display: flex; flex-direction: column; }
+.form-group.full { grid-column: span 2; }
+label { font-size: 14px; color: #71717a; margin-bottom: 0.75rem; }
+input, select, textarea {
+  background: #fafafa; border: 1px solid #e4e4e7; border-radius: 0.75rem;
+  padding: 0.75rem 1rem; font-size: 14px; transition: all 0.2s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+textarea { resize: none; font-family: inherit; }
+.form-actions { display: flex; gap: 0.75rem; padding-top: 1rem; }
+.form-actions button {
+  flex: 1; padding: 1rem; border-radius: 0.75rem; border: none;
+  font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+}
+.btn-cancel { background: #f4f4f5; color: #18181b; }
+.btn-cancel:hover { background: #e4e4e7; }
+.btn-submit { background: #2563eb; color: white; }
+.btn-submit:hover { background: #1d4ed8; }
+.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.total-entries { text-align: center; margin-top: 1.5rem; font-size: 14px; color: #a1a1aa; }
+.sort-icon { opacity: 0; transition: opacity 0.2s; }
+th:hover .sort-icon { opacity: 0.5; }
+.sort-icon.active { opacity: 1; }
+.w-96 { width: 24rem; } .w-24 { width: 6rem; } .w-20 { width: 5rem; } .w-12 { width: 3rem; }
+.truncate { max-width: 20rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="content">
+    <div class="header">
+      <h1 class="title">⚔ Organic PVP Log</h1>
+    </div>
+
+    <div class="status-banner loading" id="status-banner">
+      <div class="spinner"></div>
+      <span id="status-text">Connecting to database…</span>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-header"><div class="stat-icon green">⚔️</div><span class="stat-label">Kills</span></div>
+        <div class="stat-value" id="total-kills">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header"><div class="stat-icon red">💀</div><span class="stat-label">Deaths</span></div>
+        <div class="stat-value" id="total-deaths">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header"><div class="stat-icon blue">📊</div><span class="stat-label">K/D Ratio</span></div>
+        <div class="stat-value" id="kd-ratio">0.00</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="add-btn" onclick="openModal()" disabled>+ Add Entry</button>
+    </div>
+
+    <div class="table-container">
+      <div class="table-scroll">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th class="no-sort w-12"></th>
+              <th onclick="sortTable('dateTime')"><div class="header-content">Date/Time <span class="sort-icon" id="sort-dateTime">⇅</span></div></th>
+              <th onclick="sortTable('status')" class="w-24"><div class="header-content">Result <span class="sort-icon" id="sort-status">⇅</span></div></th>
+              <th onclick="sortTable('name')"><div class="header-content">Name <span class="sort-icon" id="sort-name">⇅</span></div></th>
+              <th onclick="sortTable('opposingShip')"><div class="header-content">Ship <span class="sort-icon" id="sort-opposingShip">⇅</span></div></th>
+              <th onclick="sortTable('type')" class="w-20"><div class="header-content">Type <span class="sort-icon" id="sort-type">⇅</span></div></th>
+              <th onclick="sortTable('weaponShip')" class="w-96"><div class="header-content">Weapon <span class="sort-icon" id="sort-weaponShip">⇅</span></div></th>
+              <th onclick="sortTable('location')"><div class="header-content">Location <span class="sort-icon" id="sort-location">⇅</span></div></th>
+              <th class="no-sort">Details</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr><td colspan="9"><div class="empty-state">
+              <div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-color:#a1a1aa;border-top-color:transparent;"></div>
+              Loading entries…
+            </div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="total-entries">Total Entries: <span id="total-entries">0</span></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 class="modal-title">New Entry</h3>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <form id="entry-form" onsubmit="handleSubmit(event)">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Date/Time</label>
+          <input type="text" id="dateTime" placeholder="DD.MM.YYYY HHMM" required>
+        </div>
+        <div class="form-group">
+          <label>Result</label>
+          <select id="status">
+            <option value="kill">Kill</option>
+            <option value="death">Death</option>
+            <option value="neutral">Neutral</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Opponent Name</label>
+          <input type="text" id="name" required>
+        </div>
+        <div class="form-group">
+          <label>Opposing Ship</label>
+          <input type="text" id="opposingShip" required>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="type">
+            <option value="s2s">s2s (Ship to Ship)</option>
+            <option value="fps">fps (First Person)</option>
+            <option value="s2g">s2g (Ship to Ground)</option>
+            <option value="s2e">s2e (Ship to EVA)</option>
+            <option value="g2s">g2s (Ground to Ship)</option>
+            <option value="eva">eva (FPS in Space)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Weapon/Ship</label>
+          <input type="text" id="weaponShip">
+        </div>
+        <div class="form-group full">
+          <label>Location</label>
+          <input type="text" id="location" required>
+        </div>
+        <div class="form-group full">
+          <label>Details</label>
+          <textarea id="details" rows="4"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-submit" id="submit-btn">Save Entry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Firebase Realtime Database SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import {
+    getDatabase,
+    ref,
+    push,
+    remove,
+    onValue,
+    set
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDcKYqnA2zCk9PiX0-vQM9i7eHI2Gz9Hnw",
+    authDomain: "sckilltracker-ec3d7.firebaseapp.com",
+    projectId: "sckilltracker-ec3d7",
+    storageBucket: "sckilltracker-ec3d7.firebasestorage.app",
+    messagingSenderId: "648348318794",
+    appId: "1:648348318794:web:a8dc06931813ffda7bfab3",
+    databaseURL: "https://sckilltracker-ec3d7-default-rtdb.europe-west1.firebasedatabase.app"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  // Data is stored at root level with numeric keys (0, 1, 2, ...)
+  const ENTRIES_PATH = '/';
+  const entriesRef = ref(db, ENTRIES_PATH);
+
+  let entries = [];
+  let sortColumn = null;
+  let sortDirection = 'asc';
+
+  // ── Status banner ─────────────────────────────────────────
+  function setStatus(type, text) {
+    const banner = document.getElementById('status-banner');
+    const textEl = document.getElementById('status-text');
+    banner.className = 'status-banner ' + type;
+    textEl.textContent = text;
+    if (type === 'success') setTimeout(() => banner.classList.add('hidden'), 3000);
+  }
+
+  // ── Real-time listener ────────────────────────────────────
+  onValue(entriesRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      // Data is stored as object with numeric keys (0, 1, 2, ...)
+      // We use the Firebase key as the id for deletion
+      entries = Object.entries(data).map(([key, val]) => ({
+        ...val,
+        id: val.id || key  // prefer the id field inside, fallback to key
+      }));
+    } else {
+      entries = [];
+    }
+    renderTable();
+    document.getElementById('add-btn').disabled = false;
+    setStatus('success', `Loaded ${entries.length} entries from database`);
+  }, (error) => {
+    setStatus('error', 'Database error: ' + error.message);
+  });
+
+  // ── Render ────────────────────────────────────────────────
+  function updateStats() {
+    const kills  = entries.filter(e => e.status === 'kill').length;
+    const deaths = entries.filter(e => e.status === 'death').length;
+    const kd     = deaths === 0 ? kills.toFixed(2) : (kills / deaths).toFixed(2);
+    document.getElementById('total-kills').textContent   = kills;
+    document.getElementById('total-deaths').textContent  = deaths;
+    document.getElementById('kd-ratio').textContent      = kd;
+    document.getElementById('total-entries').textContent = entries.length;
+  }
+
+  function renderTable() {
+    const tbody  = document.getElementById('table-body');
+    const sorted = getSortedEntries();
+
+    if (sorted.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">⚔️</div>No entries yet. Add your first kill!</div></td></tr>`;
+      updateStats();
+      return;
+    }
+
+    tbody.innerHTML = sorted.map(entry => `
+      <tr>
+        <td class="w-12"><button class="delete-btn" data-id="${entry.id}" title="Delete">🗑️</button></td>
+        <td>${entry.dateTime || ''}</td>
+        <td class="w-24">
+          <span class="badge badge-${entry.status}">
+            ${entry.status === 'kill' ? '⚔ Kill' : entry.status === 'death' ? '💀 Death' : '— Neutral'}
+          </span>
+        </td>
+        <td class="name-cell">${entry.name || ''}</td>
+        <td>${entry.opposingShip || ''}</td>
+        <td class="w-20"><span class="badge-type">${entry.type || ''}</span></td>
+        <td class="w-96">${entry.weaponShip || ''}</td>
+        <td>${entry.location || ''}</td>
+        <td class="truncate">${entry.details || ''}</td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteEntry(btn.dataset.id));
+    });
+
+    updateStats();
+  }
+
+  // ── Sorting ───────────────────────────────────────────────
+  function parseDateTime(str) {
+    if (!str) return new Date(0);
+    const parts = str.trim().split(' ');
+    const dp = parts[0].split('.');
+    const tp = parts[1] || '0000';
+    return new Date(
+      parseInt(dp[2]) || 2000, (parseInt(dp[1]) || 1) - 1, parseInt(dp[0]) || 1,
+      parseInt(tp.substring(0,2)) || 0, parseInt(tp.substring(2,4)) || 0
+    );
+  }
+
+  function getSortedEntries() {
+    if (!sortColumn) return entries;
+    return [...entries].sort((a, b) => {
+      let av = a[sortColumn], bv = b[sortColumn];
+      if (sortColumn === 'dateTime') {
+        return sortDirection === 'asc' ? parseDateTime(av) - parseDateTime(bv) : parseDateTime(bv) - parseDateTime(av);
+      }
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      if (av < bv) return sortDirection === 'asc' ? -1 : 1;
+      if (av > bv) return sortDirection === 'asc' ?  1 : -1;
+      return 0;
+    });
+  }
+
+  window.sortTable = function(column) {
+    document.querySelectorAll('.sort-icon').forEach(i => i.classList.remove('active'));
+    sortColumn = (sortColumn === column && (sortDirection = sortDirection === 'asc' ? 'desc' : 'asc') && column) || (sortDirection = 'asc') && column;
+    sortColumn = column;
+    const icon = document.getElementById('sort-' + column);
+    if (icon) { icon.classList.add('active'); icon.textContent = sortDirection === 'asc' ? '↑' : '↓'; }
+    renderTable();
+  };
+
+  // ── Add entry ─────────────────────────────────────────────
+  window.handleSubmit = async function(event) {
+    event.preventDefault();
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+
+    const newEntry = {
+      dateTime:     document.getElementById('dateTime').value,
+      status:       document.getElementById('status').value,
+      name:         document.getElementById('name').value,
+      opposingShip: document.getElementById('opposingShip').value,
+      type:         document.getElementById('type').value,
+      weaponShip:   document.getElementById('weaponShip').value,
+      location:     document.getElementById('location').value,
+      details:      document.getElementById('details').value,
+      createdAt:    Date.now()
+    };
+
+    try {
+      // Find next numeric key
+      const nextKey = entries.length > 0
+        ? Math.max(...entries.map(e => parseInt(e.id) || 0)) + 1
+        : 0;
+      await set(ref(db, '/' + nextKey), newEntry);
+      closeModal();
+      setStatus('success', 'Entry saved to database');
+    } catch (err) {
+      setStatus('error', 'Failed to save: ' + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save Entry';
+    }
+  };
+
+  // ── Delete entry ──────────────────────────────────────────
+  window.deleteEntry = async function(id) {
+    if (!confirm('Delete this entry?')) return;
+    try {
+      await remove(ref(db, '/' + id));
+      setStatus('success', 'Entry deleted');
+    } catch (err) {
+      setStatus('error', 'Failed to delete: ' + err.message);
+    }
+  };
+
+  // ── Modal ─────────────────────────────────────────────────
+  window.openModal  = () => document.getElementById('modal').classList.add('active');
+  window.closeModal = () => {
+    document.getElementById('modal').classList.remove('active');
+    document.getElementById('entry-form').reset();
+  };
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target.id === 'modal') closeModal();
+  });
+</script>
+</body>
+</html>
