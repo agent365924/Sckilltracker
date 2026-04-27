@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚔ Organic PVP Log</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-icon">⚔</div>
+      <h2 class="login-title">Organic PVP Log</h2>
+      <p class="login-subtitle">Sign in to continue</p>
+    </div>
+    <div class="login-form">
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="email-input" style="margin-bottom:0.5rem;">Email</label>
+        <input type="email" id="email-input" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="password-input" style="margin-bottom:0.5rem;">Password</label>
+        <input type="password" id="password-input" placeholder="············" autocomplete="current-password">
+      </div>
+      <div class="login-error" id="login-error">Incorrect email or password.</div>
+      <button class="login-btn" id="login-btn">Enter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div class="container">
+  <div class="content">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="title-row">
+        <div class="logo-wrap">
+          <img class="sc-logo" src="https://starcitizensocial.com/content/themes/scsocial/images/MadeByTheCommunity_White.png" alt="SC logo">
+        </div>
+        <h1 class="title">SC Killtracker</h1>
+      </div>
+      <div class="theme-toggle" id="theme-toggle" title="Toggle dark mode">
+        <div class="theme-toggle-track">
+          <div class="theme-toggle-knob"></div>
+        </div>
+        <svg class="toggle-icon-svg" id="theme-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-banner loading" id="status-banner">
+      <div class="spinner"></div>
+      <span id="status-text">Connecting to database…</span>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-header"><div class="stat-icon green">⚔️</div><span class="stat-label">Kills</span></div>
+        <div class="stat-value" id="total-kills">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-header"><div class="stat-icon red">💀</div><span class="stat-label">Deaths</span></div>
+        <div class="stat-value" id="total-deaths">0</div>
+      </div>
+      <div class="stat-card kd-card">
+        <canvas class="kd-canvas" id="kd-canvas"></canvas>
+        <div style="position:relative;z-index:1;">
+          <div class="stat-header"><div class="stat-icon blue">📊</div><span class="stat-label">K/D Ratio</span></div>
+          <div class="stat-value" id="kd-ratio">0.00</div>
+          <div class="kd-sub-stats">
+            <span class="kd-sub-label">S2S K/D: <strong id="kd-s2s">0.00</strong></span>
+            <span class="kd-sub-label">FPS K/D: <strong id="kd-fps">0.00</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info box -->
+    <div class="info-box">
+      <span class="info-box-label">Statistics</span>
+      <div class="info-box-divider"></div>
+      <!-- S2S top weapons — rendered dynamically -->
+      <div class="info-box-section" id="section-s2s-weapons">
+        <span class="info-box-label" style="opacity:0.5;">No S2S data</span>
+      </div>
+      <div class="info-box-divider"></div>
+      <div class="info-box-section">
+        <div class="info-box-stat"><span class="info-box-label">FPS kills</span><span class="badge-fps" id="fps-count">0</span></div>
+      </div>
+      <!-- FPS top weapons — rendered dynamically -->
+      <div class="info-box-section" id="section-fps-weapons">
+      </div>
+      <div class="info-box-divider"></div>
+      <div class="info-box-section">
+        <div class="info-box-stat"><span class="info-box-label">Opponent</span>  <span class="badge-opponent" id="top-opponent">—</span></div>
+        <div class="info-box-stat"><span class="info-box-label">Death type</span><span class="badge-opponent" id="top-death-type">—</span></div>
+        <div class="info-box-stat"><span class="info-box-label">Location</span>  <span class="badge-opponent" id="top-location">—</span></div>
+      </div>
+    </div>
+
+    <!-- Add button -->
+    <div class="actions" style="justify-content:center;">
+      <button class="btn btn-primary" id="add-btn" disabled style="padding:0 64px;">+ Add Engagement</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+      <div class="table-scroll">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th data-sort="status"      class="w-24"><div class="header-content">Result   <span class="sort-icon" id="sort-status">⇅</span></div></th>
+              <th data-sort="name">       <div class="header-content">Name     <span class="sort-icon" id="sort-name">⇅</span></div></th>
+              <th data-sort="weaponShip"> <div class="header-content">Weapon   <span class="sort-icon" id="sort-weaponShip">⇅</span></div></th>
+              <th data-sort="opposingShip"><div class="header-content">Opponent <span class="sort-icon" id="sort-opposingShip">⇅</span></div></th>
+              <th data-sort="type"        class="w-20"><div class="header-content">Type     <span class="sort-icon" id="sort-type">⇅</span></div></th>
+              <th data-sort="location">   <div class="header-content">Location <span class="sort-icon" id="sort-location">⇅</span></div></th>
+              <th data-sort="dateTime">   <div class="header-content">Date/Time <span class="sort-icon" id="sort-dateTime">⇅</span></div></th>
+              <th class="no-sort">Details</th>
+              <th class="no-sort w-12"></th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr><td colspan="9"><div class="empty-state">
+              <div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-color:#a1a1aa;border-top-color:transparent;"></div>
+              Loading entries…
+            </div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="total-entries">Total Entries: <span id="total-entries">0</span></div>
+
+  </div>
+</div>
+
+<!-- Add Engagement Modal -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 class="modal-title">New Engagement</h3>
+      <button class="close-btn" id="modal-close-btn">✕</button>
+    </div>
+    <form id="entry-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Date/Time</label>
+          <input type="text" id="dateTime" placeholder="DD.MM.YYYY HHMM" required>
+        </div>
+        <div class="form-group">
+          <label>Result</label>
+          <select id="status">
+            <option value="kill">Kill</option>
+            <option value="death">Death</option>
+            <option value="neutral">Neutral</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Opponent Name</label>
+          <input type="text" id="name" required>
+        </div>
+        <div class="form-group">
+          <label>Opposing Ship</label>
+          <input type="text" id="opposingShip" required>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="type">
+            <option value="s2s">s2s (Ship to Ship)</option>
+            <option value="fps">fps (First Person)</option>
+            <option value="s2g">s2g (Ship to Ground)</option>
+            <option value="s2e">s2e (Ship to EVA)</option>
+            <option value="g2s">g2s (Ground to Ship)</option>
+            <option value="eva">eva (FPS in Space)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Weapon/Ship</label>
+          <input type="text" id="weaponShip">
+        </div>
+        <div class="form-group full">
+          <label>Location</label>
+          <input type="text" id="location" required>
+        </div>
+        <div class="form-group full">
+          <label>Details</label>
+          <textarea id="details" rows="4"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" id="modal-cancel-btn" class="btn-cancel">Cancel</button>
+        <button type="submit" class="btn-submit" id="submit-btn">Save Entry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
