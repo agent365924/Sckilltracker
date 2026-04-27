@@ -159,12 +159,23 @@ function updateStats() {
   // FPS kill count
   document.getElementById('fps-count').textContent = fpsKills + fpsDeaths;
 
-  // Top 3 S2S/S2G/S2E weapons
-  const s2sTypes   = ['s2s', 's2g', 's2e'];
-  const s2sWeapons = entries
-    .filter(e => s2sTypes.includes((e.type || '').toLowerCase()))
-    .map(e => (e.weaponShip || '').trim());
-  renderWeaponSection('section-s2s-weapons', topN(s2sWeapons), 'badge-ship', 'No S2S data');
+  // Ship stats — fixed list, count substring matches in weaponShip across all entries
+  const SHIP_GROUPS = [
+    { label: 'Gladius',          terms: ['gladius'] },
+    { label: 'Sabre',            terms: ['sabre'] },
+    { label: 'Vanguard/Warden',  terms: ['vanguard', 'warden'] },
+    { label: 'Avenger/Titan',    terms: ['avenger', 'titan'] },
+    { label: 'Arrow',            terms: ['arrow'] },
+  ];
+  const shipCounts = SHIP_GROUPS.map(({ label, terms }) => ({
+    val:   label,
+    count: entries.filter(e => {
+      const w = (e.weaponShip || '').toLowerCase();
+      return terms.some(t => w.includes(t));
+    }).length,
+  })).filter(s => s.count > 0)
+    .sort((a, b) => b.count - a.count);
+  renderWeaponSection('section-s2s-weapons', shipCounts, 'badge-ship', 'No ship data');
 
   // Top 3 FPS weapons
   const fpsWeapons = entries
