@@ -163,8 +163,8 @@ function updateStats() {
   const SHIP_GROUPS = [
     { label: 'Gladius',          terms: ['gladius'] },
     { label: 'Sabre',            terms: ['sabre'] },
-    { label: 'Vanguard Warden',  terms: ['vanguard', 'warden'] },
-    { label: 'Avenger Titan',    terms: ['avenger', 'titan'] },
+    { label: 'Warden',           terms: ['vanguard', 'warden'] },
+    { label: 'Titan',            terms: ['avenger', 'titan'] },
     { label: 'Arrow',            terms: ['arrow'] },
   ];
   const shipCounts = SHIP_GROUPS.map(({ label, terms }) => ({
