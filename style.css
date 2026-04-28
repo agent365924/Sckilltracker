@@ -207,7 +207,7 @@ html.dark .info-box-stat .badge-opponent { background: #2d1a08; color: #fb923c; 
 }
 .btn {
   padding: 0 40px; height: 38px; line-height: 38px;
-  border-radius: 9999px; border: none; font-size: 18px; font-weight: 700; letter-spacing: 0.02em;
+  border-radius: 9999px; border: none; font-size: 16px; font-weight: 400; letter-spacing: 0.02em;
   cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;
   transition: all 0.2s; box-shadow: 0 1px 2px var(--shadow);
 }
