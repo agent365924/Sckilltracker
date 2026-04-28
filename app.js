@@ -136,8 +136,11 @@ function mostCommon(arr) {
 
 /* ── Stats ───────────────────────────────────────────────── */
 function updateStats() {
-  const kills  = entries.filter(e => e.status === 'kill').length;
-  const deaths = entries.filter(e => e.status === 'death').length;
+  // dko counts as 1 kill + 1 death
+  const kills  = entries.filter(e => e.status === 'kill').length
+               + entries.filter(e => e.status === 'dko').length;
+  const deaths = entries.filter(e => e.status === 'death').length
+               + entries.filter(e => e.status === 'dko').length;
 
   // Overall K/D
   document.getElementById('total-kills').textContent   = kills;
@@ -147,14 +150,20 @@ function updateStats() {
 
   // FPS K/D
   const fpsTypes  = ['fps', 'eva'];
-  const fpsKills  = entries.filter(e => e.status === 'kill'  && fpsTypes.includes((e.type || '').toLowerCase())).length;
-  const fpsDeaths = entries.filter(e => e.status === 'death' && fpsTypes.includes((e.type || '').toLowerCase())).length;
+  const fpsKills  = entries.filter(e => (e.status === 'kill' || e.status === 'dko') && fpsTypes.includes((e.type || '').toLowerCase())).length;
+  const fpsDeaths = entries.filter(e => (e.status === 'death' || e.status === 'dko') && fpsTypes.includes((e.type || '').toLowerCase())).length;
   document.getElementById('kd-fps').textContent = kdRatio(fpsKills, fpsDeaths);
 
   // S2S K/D
-  const s2sKills  = entries.filter(e => e.status === 'kill'  && (e.type || '').toLowerCase() === 's2s').length;
-  const s2sDeaths = entries.filter(e => e.status === 'death' && (e.type || '').toLowerCase() === 's2s').length;
+  const s2sKills  = entries.filter(e => (e.status === 'kill' || e.status === 'dko') && (e.type || '').toLowerCase() === 's2s').length;
+  const s2sDeaths = entries.filter(e => (e.status === 'death' || e.status === 'dko') && (e.type || '').toLowerCase() === 's2s').length;
   document.getElementById('kd-s2s').textContent = kdRatio(s2sKills, s2sDeaths);
+
+  // Kills/Deaths card sub-stats
+  document.getElementById('kills-s2s').textContent  = entries.filter(e => (e.status === 'kill' || e.status === 'dko') && (e.type || '').toLowerCase() === 's2s').length;
+  document.getElementById('kills-fps').textContent  = fpsKills;
+  document.getElementById('deaths-s2s').textContent = entries.filter(e => (e.status === 'death' || e.status === 'dko') && (e.type || '').toLowerCase() === 's2s').length;
+  document.getElementById('deaths-fps').textContent = fpsDeaths;
 
   // FPS kill count
   document.getElementById('fps-count').textContent = fpsKills + fpsDeaths;
@@ -230,8 +239,8 @@ function drawKDGraph() {
 
   let k = 0, d = 0;
   const points = dated.map(e => {
-    if (e.status === 'kill')  k++;
-    if (e.status === 'death') d++;
+    if (e.status === 'kill' || e.status === 'dko')  k++;
+    if (e.status === 'death' || e.status === 'dko') d++;
     return { date: e.date, kd: d === 0 ? k : k / d };
   });
 
@@ -323,13 +332,17 @@ function renderTable() {
     return;
   }
 
-  // Column order: result, name, weapon, opponent ship, type, location, date, details, delete
-  tbody.innerHTML = sorted.map(e => `
+  // Column order: result, name, weapon, opponent ship, type, location, date, details, actions
+  tbody.innerHTML = sorted.map(e => {
+    let badgeClass, badgeLabel;
+    if (e.status === 'kill')         { badgeClass = 'badge-kill';    badgeLabel = '⚔ Kill'; }
+    else if (e.status === 'death')   { badgeClass = 'badge-death';   badgeLabel = '💀 Death'; }
+    else if (e.status === 'dko')     { badgeClass = 'badge-dko';     badgeLabel = '⚔💀 2xK/O'; }
+    else                             { badgeClass = 'badge-neutral'; badgeLabel = '— Neutral'; }
+    return `
     <tr>
       <td class="w-24">
-        <span class="badge badge-${e.status}">
-          ${e.status === 'kill' ? '⚔ Kill' : e.status === 'death' ? '💀 Death' : '— Neutral'}
-        </span>
+        <span class="badge ${badgeClass}">${badgeLabel}</span>
       </td>
       <td class="name-cell">
         ${e.name ? `<a href="https://robertsspaceindustries.com/en/citizens/${e.name}" target="_blank" rel="noopener noreferrer" class="citizen-link">${e.name}</a>` : ''}
@@ -340,17 +353,27 @@ function renderTable() {
       <td>${e.location || ''}</td>
       <td>${e.dateTime || ''}</td>
       <td class="truncate">${e.details || ''}</td>
-      <td class="w-12"><button class="delete-btn" data-id="${e.id}" title="Delete">🗑️</button></td>
-    </tr>
-  `).join('');
+      <td class="w-12">
+        <span class="row-actions">
+          <button class="edit-btn" data-id="${e.id}" title="Edit">✏️</button>
+          <button class="delete-btn" data-id="${e.id}" title="Delete">🗑️</button>
+        </span>
+      </td>
+    </tr>`;
+  }).join('');
 
   tbody.querySelectorAll('.delete-btn').forEach(btn =>
     btn.addEventListener('click', () => deleteEntry(btn.dataset.id))
   );
+  tbody.querySelectorAll('.edit-btn').forEach(btn =>
+    btn.addEventListener('click', () => openEditModal(btn.dataset.id))
+  );
   updateStats();
 }
 
-/* ── Add / Delete ────────────────────────────────────────── */
+/* ── Add / Edit / Delete ─────────────────────────────────── */
+let editingId = null; // null = new entry, string = editing existing
+
 async function saveEntry(ev) {
   ev.preventDefault();
   const btn = document.getElementById('submit-btn');
@@ -365,18 +388,26 @@ async function saveEntry(ev) {
     weaponShip:   document.getElementById('weaponShip').value,
     location:     document.getElementById('location').value,
     details:      document.getElementById('details').value,
-    createdAt:    Date.now(),
   };
 
   try {
-    const nextKey = entries.length ? Math.max(...entries.map(e => parseInt(e.id) || 0)) + 1 : 0;
-    await set(ref(db, '/' + nextKey), entry);
+    if (editingId !== null) {
+      // Preserve original createdAt
+      const orig = entries.find(e => String(e.id) === String(editingId));
+      entry.createdAt = orig ? orig.createdAt : Date.now();
+      await set(ref(db, '/' + editingId), entry);
+      setStatus('success', 'Entry updated');
+    } else {
+      entry.createdAt = Date.now();
+      const nextKey = entries.length ? Math.max(...entries.map(e => parseInt(e.id) || 0)) + 1 : 0;
+      await set(ref(db, '/' + nextKey), entry);
+      setStatus('success', 'Entry saved');
+    }
     closeModal();
-    setStatus('success', 'Entry saved');
   } catch (err) {
     setStatus('error', 'Failed to save: ' + err.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'Save Entry';
+    btn.disabled = false; btn.textContent = editingId !== null ? 'Save' : 'Save Entry';
   }
 }
 
@@ -391,10 +422,39 @@ async function deleteEntry(id) {
 }
 
 /* ── Modal ───────────────────────────────────────────────── */
-function openModal()  { document.getElementById('modal').classList.add('active'); }
+function openModal() {
+  editingId = null;
+  document.getElementById('modal-title') && (document.querySelector('.modal-title').textContent = 'New Engagement');
+  document.getElementById('submit-btn').textContent = 'Save Entry';
+  document.getElementById('modal').classList.add('active');
+}
+
+function openEditModal(id) {
+  const entry = entries.find(e => String(e.id) === String(id));
+  if (!entry) return;
+  editingId = id;
+
+  document.querySelector('.modal-title').textContent = 'Edit Engagement';
+  document.getElementById('submit-btn').textContent  = 'Save';
+
+  document.getElementById('dateTime').value     = entry.dateTime    || '';
+  document.getElementById('status').value       = entry.status      || 'kill';
+  document.getElementById('name').value         = entry.name        || '';
+  document.getElementById('opposingShip').value = entry.opposingShip|| '';
+  document.getElementById('type').value         = entry.type        || 's2s';
+  document.getElementById('weaponShip').value   = entry.weaponShip  || '';
+  document.getElementById('location').value     = entry.location    || '';
+  document.getElementById('details').value      = entry.details     || '';
+
+  document.getElementById('modal').classList.add('active');
+}
+
 function closeModal() {
+  editingId = null;
   document.getElementById('modal').classList.remove('active');
   document.getElementById('entry-form').reset();
+  document.querySelector('.modal-title').textContent = 'New Engagement';
+  document.getElementById('submit-btn').textContent  = 'Save Entry';
 }
 
 /* ── Wire all events ─────────────────────────────────────── */
