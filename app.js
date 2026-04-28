@@ -165,7 +165,36 @@ function updateStats() {
   document.getElementById('deaths-s2s').textContent = s2sDeaths;
   document.getElementById('deaths-fps').textContent = fpsDeaths;
 
-  document.getElementById('fps-count').textContent = fpsKills + fpsDeaths;
+  // K/D trend: compare last 3 months vs prior 3 months
+  const now       = new Date();
+  const ms3mo     = 90 * 24 * 60 * 60 * 1000;
+  const cutRecent = new Date(now.getTime() - ms3mo);
+  const cutPrior  = new Date(now.getTime() - 2 * ms3mo);
+
+  function periodKD(from, to) {
+    const sub = entries.filter(e => {
+      const d = parseEntryDate(e.dateTime);
+      return d && d >= from && d < to;
+    });
+    const k = sub.filter(e => e.status === 'kill'  || e.status === 'dko').length;
+    const d = sub.filter(e => e.status === 'death' || e.status === 'dko').length;
+    return d === 0 ? k : k / d;
+  }
+
+  const kdRecent  = periodKD(cutRecent, now);
+  const kdPrior   = periodKD(cutPrior, cutRecent);
+  const trendEl   = document.getElementById('kd-trend');
+  if (trendEl) {
+    const hasRecent = entries.some(e => { const d = parseEntryDate(e.dateTime); return d && d >= cutRecent; });
+    const hasPrior  = entries.some(e => { const d = parseEntryDate(e.dateTime); return d && d >= cutPrior && d < cutRecent; });
+    if (hasRecent && hasPrior) {
+      if (kdRecent > kdPrior)      { trendEl.textContent = '↑'; trendEl.style.color = '#16a34a'; }
+      else if (kdRecent < kdPrior) { trendEl.textContent = '↓'; trendEl.style.color = '#dc2626'; }
+      else                         { trendEl.textContent = ''; }
+    } else {
+      trendEl.textContent = '';
+    }
+  }
 
   const SHIP_GROUPS = [
     { label: 'Gladius', terms: ['gladius'] },
