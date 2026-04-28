@@ -394,7 +394,7 @@ async function saveEntry(ev) {
     if (editingId !== null) {
       // Preserve original createdAt
       const orig = entries.find(e => String(e.id) === String(editingId));
-      entry.createdAt = orig ? orig.createdAt : Date.now();
+      entry.createdAt = (orig && orig.createdAt) ? orig.createdAt : Date.now();
       await set(ref(db, '/' + editingId), entry);
       setStatus('success', 'Entry updated');
     } else {
