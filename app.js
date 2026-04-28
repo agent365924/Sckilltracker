@@ -105,8 +105,13 @@ function startDatabase() {
   dbStarted = true;
   onValue(ref(db, '/'), (snapshot) => {
     const data = snapshot.val();
+    // _key always holds the real Firebase node key for safe writes/deletes
     entries = data
-      ? Object.entries(data).map(([key, val]) => ({ ...val, id: val.id !== undefined ? val.id : key }))
+      ? Object.entries(data).map(([key, val]) => ({
+          ...val,
+          _key: key,
+          id: val.id !== undefined ? val.id : key,
+        }))
       : [];
     renderTable();
     document.getElementById('add-btn').disabled = false;
@@ -119,7 +124,6 @@ function kdRatio(kills, deaths) {
   return deaths === 0 ? kills.toFixed(2) : (kills / deaths).toFixed(2);
 }
 
-// Returns top N most common non-empty strings from an array
 function topN(arr, n = 3) {
   const counts = {};
   arr.filter(v => v && v.trim()).forEach(v => { counts[v] = (counts[v] || 0) + 1; });
@@ -142,39 +146,33 @@ function updateStats() {
   const deaths = entries.filter(e => e.status === 'death').length
                + entries.filter(e => e.status === 'dko').length;
 
-  // Overall K/D
   document.getElementById('total-kills').textContent   = kills;
   document.getElementById('total-deaths').textContent  = deaths;
   document.getElementById('kd-ratio').textContent      = kdRatio(kills, deaths);
   document.getElementById('total-entries').textContent = entries.length;
 
-  // FPS K/D
   const fpsTypes  = ['fps', 'eva'];
-  const fpsKills  = entries.filter(e => (e.status === 'kill' || e.status === 'dko') && fpsTypes.includes((e.type || '').toLowerCase())).length;
+  const fpsKills  = entries.filter(e => (e.status === 'kill'  || e.status === 'dko') && fpsTypes.includes((e.type || '').toLowerCase())).length;
   const fpsDeaths = entries.filter(e => (e.status === 'death' || e.status === 'dko') && fpsTypes.includes((e.type || '').toLowerCase())).length;
   document.getElementById('kd-fps').textContent = kdRatio(fpsKills, fpsDeaths);
 
-  // S2S K/D
-  const s2sKills  = entries.filter(e => (e.status === 'kill' || e.status === 'dko') && (e.type || '').toLowerCase() === 's2s').length;
+  const s2sKills  = entries.filter(e => (e.status === 'kill'  || e.status === 'dko') && (e.type || '').toLowerCase() === 's2s').length;
   const s2sDeaths = entries.filter(e => (e.status === 'death' || e.status === 'dko') && (e.type || '').toLowerCase() === 's2s').length;
   document.getElementById('kd-s2s').textContent = kdRatio(s2sKills, s2sDeaths);
 
-  // Kills/Deaths card sub-stats
-  document.getElementById('kills-s2s').textContent  = entries.filter(e => (e.status === 'kill' || e.status === 'dko') && (e.type || '').toLowerCase() === 's2s').length;
+  document.getElementById('kills-s2s').textContent  = s2sKills;
   document.getElementById('kills-fps').textContent  = fpsKills;
-  document.getElementById('deaths-s2s').textContent = entries.filter(e => (e.status === 'death' || e.status === 'dko') && (e.type || '').toLowerCase() === 's2s').length;
+  document.getElementById('deaths-s2s').textContent = s2sDeaths;
   document.getElementById('deaths-fps').textContent = fpsDeaths;
 
-  // FPS kill count
   document.getElementById('fps-count').textContent = fpsKills + fpsDeaths;
 
-  // Ship stats — fixed list, count substring matches in weaponShip across all entries
   const SHIP_GROUPS = [
-    { label: 'Gladius',          terms: ['gladius'] },
-    { label: 'Sabre',            terms: ['sabre'] },
-    { label: 'Warden',           terms: ['vanguard', 'warden'] },
-    { label: 'Titan',            terms: ['avenger', 'titan'] },
-    { label: 'Arrow',            terms: ['arrow'] },
+    { label: 'Gladius', terms: ['gladius'] },
+    { label: 'Sabre',   terms: ['sabre'] },
+    { label: 'Warden',  terms: ['vanguard', 'warden'] },
+    { label: 'Titan',   terms: ['avenger', 'titan'] },
+    { label: 'Arrow',   terms: ['arrow'] },
   ];
   const shipCounts = SHIP_GROUPS.map(({ label, terms }) => ({
     val:   label,
@@ -182,17 +180,14 @@ function updateStats() {
       const w = (e.weaponShip || '').toLowerCase();
       return terms.some(t => w.includes(t));
     }).length,
-  })).filter(s => s.count > 0)
-    .sort((a, b) => b.count - a.count);
+  })).filter(s => s.count > 0).sort((a, b) => b.count - a.count);
   renderWeaponSection('section-s2s-weapons', shipCounts, 'badge-ship', 'No ship data');
 
-  // Top 3 FPS weapons
   const fpsWeapons = entries
     .filter(e => fpsTypes.includes((e.type || '').toLowerCase()))
     .map(e => (e.weaponShip || '').trim());
   renderWeaponSection('section-fps-weapons', topN(fpsWeapons), 'badge-fps', '');
 
-  // Bottom stats
   document.getElementById('top-opponent').textContent   = mostCommon(entries.map(e => (e.opposingShip || '').trim()));
   document.getElementById('top-death-type').textContent = mostCommon(entries.filter(e => e.status === 'death').map(e => (e.type || '').trim()));
   document.getElementById('top-location').textContent   = mostCommon(entries.map(e => (e.location || '').trim()));
@@ -239,7 +234,7 @@ function drawKDGraph() {
 
   let k = 0, d = 0;
   const points = dated.map(e => {
-    if (e.status === 'kill' || e.status === 'dko')  k++;
+    if (e.status === 'kill'  || e.status === 'dko') k++;
     if (e.status === 'death' || e.status === 'dko') d++;
     return { date: e.date, kd: d === 0 ? k : k / d };
   });
@@ -256,7 +251,6 @@ function drawKDGraph() {
   const toX = dt => PX + ((dt.getTime() - minD) / dR) * (W - PX * 2);
   const toY = v  => PB + (1 - (v - minKD) / kdR) * (cH - PB - 8);
 
-  // Filled area — brighter blue
   ctx.beginPath();
   ctx.moveTo(toX(points[0].date), cH);
   points.forEach(p => ctx.lineTo(toX(p.date), toY(p.kd)));
@@ -267,7 +261,6 @@ function drawKDGraph() {
   g.addColorStop(1, 'rgba(96,165,250,0.05)');
   ctx.fillStyle = g; ctx.fill();
 
-  // Line — brighter, thicker
   ctx.beginPath();
   points.forEach((p, i) => i === 0 ? ctx.moveTo(toX(p.date), toY(p.kd)) : ctx.lineTo(toX(p.date), toY(p.kd)));
   ctx.strokeStyle = 'rgba(147,197,253,0.95)';
@@ -275,7 +268,6 @@ function drawKDGraph() {
   ctx.lineJoin    = 'round';
   ctx.stroke();
 
-  // Year labels
   const y0 = points[0].date.getFullYear(), y1 = points[points.length - 1].date.getFullYear();
   ctx.fillStyle = 'rgba(148,163,184,0.9)'; ctx.font = '9px -apple-system,sans-serif';
   for (let y = y0; y <= y1; y++) {
@@ -332,13 +324,12 @@ function renderTable() {
     return;
   }
 
-  // Column order: result, name, weapon, opponent ship, type, location, date, details, actions
   tbody.innerHTML = sorted.map(e => {
     let badgeClass, badgeLabel;
-    if (e.status === 'kill')         { badgeClass = 'badge-kill';    badgeLabel = '⚔ Kill'; }
-    else if (e.status === 'death')   { badgeClass = 'badge-death';   badgeLabel = '💀 Death'; }
-    else if (e.status === 'dko')     { badgeClass = 'badge-dko';     badgeLabel = '⚔💀 2xK/O'; }
-    else                             { badgeClass = 'badge-neutral'; badgeLabel = '— Neutral'; }
+    if      (e.status === 'kill')  { badgeClass = 'badge-kill';    badgeLabel = '⚔ Kill'; }
+    else if (e.status === 'death') { badgeClass = 'badge-death';   badgeLabel = '💀 Death'; }
+    else if (e.status === 'dko')   { badgeClass = 'badge-dko';     badgeLabel = '⚔💀 2xK/O'; }
+    else                           { badgeClass = 'badge-neutral'; badgeLabel = '— Neutral'; }
     return `
     <tr>
       <td class="w-24">
@@ -355,24 +346,24 @@ function renderTable() {
       <td class="truncate">${e.details || ''}</td>
       <td class="w-12">
         <span class="row-actions">
-          <button class="edit-btn" data-id="${e.id}" title="Edit">✏️</button>
-          <button class="delete-btn" data-id="${e.id}" title="Delete">🗑️</button>
+          <button class="edit-btn"   data-key="${e._key}" title="Edit">✏️</button>
+          <button class="delete-btn" data-key="${e._key}" title="Delete">🗑️</button>
         </span>
       </td>
     </tr>`;
   }).join('');
 
   tbody.querySelectorAll('.delete-btn').forEach(btn =>
-    btn.addEventListener('click', () => deleteEntry(btn.dataset.id))
+    btn.addEventListener('click', () => deleteEntry(btn.dataset.key))
   );
   tbody.querySelectorAll('.edit-btn').forEach(btn =>
-    btn.addEventListener('click', () => openEditModal(btn.dataset.id))
+    btn.addEventListener('click', () => openEditModal(btn.dataset.key))
   );
   updateStats();
 }
 
 /* ── Add / Edit / Delete ─────────────────────────────────── */
-let editingId = null; // null = new entry, string = editing existing
+let editingKey = null; // null = new entry, string = Firebase node key being edited
 
 async function saveEntry(ev) {
   ev.preventDefault();
@@ -391,15 +382,14 @@ async function saveEntry(ev) {
   };
 
   try {
-    if (editingId !== null) {
-      // Preserve original createdAt
-      const orig = entries.find(e => String(e.id) === String(editingId));
+    if (editingKey !== null) {
+      const orig = entries.find(e => e._key === editingKey);
       entry.createdAt = (orig && orig.createdAt) ? orig.createdAt : Date.now();
-      await set(ref(db, '/' + editingId), entry);
+      await set(ref(db, '/' + editingKey), entry);
       setStatus('success', 'Entry updated');
     } else {
       entry.createdAt = Date.now();
-      const nextKey = entries.length ? Math.max(...entries.map(e => parseInt(e.id) || 0)) + 1 : 0;
+      const nextKey = entries.length ? Math.max(...entries.map(e => parseInt(e._key) || 0)) + 1 : 0;
       await set(ref(db, '/' + nextKey), entry);
       setStatus('success', 'Entry saved');
     }
@@ -407,14 +397,15 @@ async function saveEntry(ev) {
   } catch (err) {
     setStatus('error', 'Failed to save: ' + err.message);
   } finally {
-    btn.disabled = false; btn.textContent = editingId !== null ? 'Save' : 'Save Entry';
+    btn.disabled = false;
+    btn.textContent = editingKey !== null ? 'Save' : 'Save Entry';
   }
 }
 
-async function deleteEntry(id) {
+async function deleteEntry(key) {
   if (!confirm('Delete this entry?')) return;
   try {
-    await remove(ref(db, '/' + id));
+    await remove(ref(db, '/' + key));
     setStatus('success', 'Entry deleted');
   } catch (err) {
     setStatus('error', 'Failed to delete: ' + err.message);
@@ -423,34 +414,34 @@ async function deleteEntry(id) {
 
 /* ── Modal ───────────────────────────────────────────────── */
 function openModal() {
-  editingId = null;
-  document.getElementById('modal-title') && (document.querySelector('.modal-title').textContent = 'New Engagement');
-  document.getElementById('submit-btn').textContent = 'Save Entry';
+  editingKey = null;
+  document.querySelector('.modal-title').textContent = 'New Engagement';
+  document.getElementById('submit-btn').textContent  = 'Save Entry';
   document.getElementById('modal').classList.add('active');
 }
 
-function openEditModal(id) {
-  const entry = entries.find(e => String(e.id) === String(id));
+function openEditModal(key) {
+  const entry = entries.find(e => e._key === key);
   if (!entry) return;
-  editingId = id;
+  editingKey = key;
 
   document.querySelector('.modal-title').textContent = 'Edit Engagement';
   document.getElementById('submit-btn').textContent  = 'Save';
 
-  document.getElementById('dateTime').value     = entry.dateTime    || '';
-  document.getElementById('status').value       = entry.status      || 'kill';
-  document.getElementById('name').value         = entry.name        || '';
-  document.getElementById('opposingShip').value = entry.opposingShip|| '';
-  document.getElementById('type').value         = entry.type        || 's2s';
-  document.getElementById('weaponShip').value   = entry.weaponShip  || '';
-  document.getElementById('location').value     = entry.location    || '';
-  document.getElementById('details').value      = entry.details     || '';
+  document.getElementById('dateTime').value     = entry.dateTime     || '';
+  document.getElementById('status').value       = entry.status       || 'kill';
+  document.getElementById('name').value         = entry.name         || '';
+  document.getElementById('opposingShip').value = entry.opposingShip || '';
+  document.getElementById('type').value         = entry.type         || 's2s';
+  document.getElementById('weaponShip').value   = entry.weaponShip   || '';
+  document.getElementById('location').value     = entry.location     || '';
+  document.getElementById('details').value      = entry.details      || '';
 
   document.getElementById('modal').classList.add('active');
 }
 
 function closeModal() {
-  editingId = null;
+  editingKey = null;
   document.getElementById('modal').classList.remove('active');
   document.getElementById('entry-form').reset();
   document.querySelector('.modal-title').textContent = 'New Engagement';
