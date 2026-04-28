@@ -354,7 +354,8 @@ input:focus, select:focus, textarea:focus {
 textarea { resize: none; font-family: inherit; }
 
 .form-actions { display: flex; gap: 0.75rem; padding-top: 1rem; }
-.form-actions .btn { flex: 1; justify-content: center; height: 48px; border-radius: 0.75rem; padding: 0 1rem; }
+.form-actions .btn,
+.btn-form { flex: 1; justify-content: center; height: 48px; border-radius: 0.75rem; padding: 0 1rem; }
 .btn-cancel        { background: var(--bg-hover); color: var(--text); box-shadow: none; }
 .btn-cancel:hover  { background: var(--border); }
 
