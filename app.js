@@ -444,7 +444,7 @@ async function deleteEntry(key) {
 /* ── Modal ───────────────────────────────────────────────── */
 function openModal() {
   editingKey = null;
-  document.querySelector('.modal-title').textContent = 'New Engagement';
+  document.querySelector('.modal-title').textContent = 'Add Engagement';
   document.getElementById('submit-btn').textContent  = 'Save';
   document.getElementById('modal').classList.add('active');
 }
@@ -473,7 +473,7 @@ function closeModal() {
   editingKey = null;
   document.getElementById('modal').classList.remove('active');
   document.getElementById('entry-form').reset();
-  document.querySelector('.modal-title').textContent = 'New Engagement';
+  document.querySelector('.modal-title').textContent = 'Add Engagement';
   document.getElementById('submit-btn').textContent  = 'Save';
 }
 
